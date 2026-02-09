@@ -30,16 +30,16 @@ L’objectif est de garantir :
 
 ###  data_project_mongo/
 ####    data/
-#####      healthcare_dataset_clean.csv      # Données nettoyées
+#####      healthcare_dataset_clean.csv      > Données nettoyées
 ####    logs/
-#####      migration.log                     # Logs de migration
-####    migrate_to_mongo.py                  # Script de migration
-####    Dockerfile                           # Image du script
-####    docker-compose.yml                   # Orchestration des services
-####    requirements.txt                     # Dépendances Python
-####    .gitignore                           # Fichiers ignorés
-####    README.md                            # Documentation
-####    venv/                                # Environnement virtuel (local)
+#####      migration.log                     > Logs de migration
+####    migrate_to_mongo.py                  > Script de migration
+####    Dockerfile                           > Image du script
+####    docker-compose.yml                   > Orchestration des services
+####    requirements.txt                     > Dépendances Python
+####    .gitignore                           > Fichiers ignorés
+####    README.md                            > Documentation
+####    venv/                                > Environnement virtuel (local)
 
 
 
