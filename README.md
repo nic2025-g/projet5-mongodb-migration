@@ -42,6 +42,7 @@ data_project_mongo/
 └── venv/                              # Environnement virtuel (local)
 
 
+
 ---
 
 ##  Gestion des données
