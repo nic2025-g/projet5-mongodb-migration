@@ -28,3 +28,25 @@ L’objectif est de garantir :
 
 ##  Structure du projet
 
+---
+
+##  Gestion des données
+
+- Le dataset original n’est pas stocké dans le dépôt GitHub pour des raisons de confidentialité et de conformité RGPD.
+
+- Les données sont fournies séparément dans un environnement sécurisé.
+
+---
+
+## Sécurité et confidentialité
+
+- Authentification MongoDB activée
+
+- Rôles utilisateurs définis (admin, analyste, médecin, data engineer)
+
+- Vue anonymisée pour les analystes
+
+- Principe du moindre privilège appliqué
+
+- Fichier .env non versionné
+
