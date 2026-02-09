@@ -1,0 +1,28 @@
+services:
+
+  mongo:
+    image: mongo:7
+    container_name: mongo_healthcare
+    restart: always
+    ports:
+      - "27017:27017"
+    command: ["mongod", "--auth"]
+    volumes:
+      - mongo_data:/data/db
+
+
+  migration:
+    build: .
+    container_name: migration_script
+    depends_on:
+      - mongo
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    command: python migrate_to_mongo.py
+
+
+volumes:
+  mongo_data:
+
