@@ -1,15 +1,18 @@
+version: "3.9"
+
 services:
 
   mongo:
     image: mongo:7
     container_name: mongo_healthcare
     restart: always
+    command: ["mongod", "--auth"]
     ports:
       - "27017:27017"
-    command: ["mongod", "--auth"]
     volumes:
       - mongo_data:/data/db
-
+    networks:
+      - healthcare_network
 
   migration:
     build: .
@@ -18,11 +21,15 @@ services:
       - mongo
     env_file:
       - .env
-    volumes:
-      - ./data:/app/data
     command: python migrate_to_mongo.py
-
+    networks:
+      - healthcare_network
 
 volumes:
   mongo_data:
+
+networks:
+  healthcare_network:
+    driver: bridge
+
 
