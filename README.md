@@ -71,29 +71,36 @@ L'objectif de cette mission est de:
 
  {
   "personal_info": {
-    "name": "John Doe",
+    "name": "Patient Exemple",
     "age": 45,
     "gender": "Male",
     "blood_type": "O+"
   },
   "medical_info": {
     "condition": "Diabetes",
+    "doctor": "Dr Exemple",
     "medication": "Metformin",
-    "test_results": "Stable"
+    "test_results": "Normal"
   },
   "administrative_info": {
-    "hospital": "Central Hospital",
-    "doctor": "Dr Smith",
+    "hospital": "Hospital Exemple",
+    "room_number": 101,
     "admission": {
-      "date": "2024-01-12",
-      "type": "Emergency"
+      "type": "Emergency",
+      "date": "2024-01-12"
     },
-    "discharge_date": "2024-01-20",
-    "billing_amount": 3200
+    "discharge": {
+      "date": "2024-01-20",
+      "stay_duration_days": 8
+    },
+    "insurance_provider": "Assurance Exemple",
+    "billing_amount": 3200.0
   },
   "metadata": {
-    "source": "CSV migration",
-    "migration_date": "2026-02-04"
+    "source": "data/healthcare_dataset_clean.csv",
+    "import_date": {
+      "$date": "2026-10-19T12:00:00Z"
+    }
   }
 }
 
