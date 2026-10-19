@@ -26,6 +26,7 @@ L'objectif de cette mission est de:
 - Mettre en place un système sécurisé (authentification + rôles)
 - Conteneuriser la base et le script
 - Documenter entièrement la solution
+- L'optimisation par index et les rôles personnalisés sont en fait des améliorations prévues.
 
 ---
 
@@ -70,62 +71,177 @@ L'objectif de cette mission est de:
 
  {
   "personal_info": {
-    "name": "John Doe",
+    "name": "Patient Exemple",
     "age": 45,
     "gender": "Male",
     "blood_type": "O+"
   },
   "medical_info": {
     "condition": "Diabetes",
+    "doctor": "Dr Exemple",
     "medication": "Metformin",
-    "test_results": "Stable"
+    "test_results": "Normal"
   },
   "administrative_info": {
-    "hospital": "Central Hospital",
-    "doctor": "Dr Smith",
+    "hospital": "Hospital Exemple",
+    "room_number": 101,
     "admission": {
-      "date": "2024-01-12",
-      "type": "Emergency"
+      "type": "Emergency",
+      "date": "2024-01-12"
     },
-    "discharge_date": "2024-01-20",
-    "billing_amount": 3200
+    "discharge": {
+      "date": "2024-01-20",
+      "stay_duration_days": 8
+    },
+    "insurance_provider": "Assurance Exemple",
+    "billing_amount": 3200.0
   },
   "metadata": {
-    "source": "CSV migration",
-    "migration_date": "2026-02-04"
+    "source": "data/healthcare_dataset_clean.csv",
+    "import_date": {
+      "$date": "2026-10-19T12:00:00Z"
+    }
   }
 }
 
-###  Justification du modele :
-- Un document = un patient
-- Structure imbriquée adaptée à MongoDB
-- Pas de jointures necessaires
-- Meilleures performances en lecture
-- Une seule collection principale pour simplifier l'architechture
+### Justification du modèle
+
+Chaque document représente une ligne du CSV, correspondant à un
+enregistrement d’hospitalisation. Un même patient peut donc apparaître
+dans plusieurs documents.
+
+Les informations sont regroupées dans quatre sous-documents :
+
+- `personal_info` : informations personnelles ;
+- `medical_info` : condition médicale, médecin et traitement ;
+- `administrative_info` : établissement, admission, sortie et facturation ;
+- `metadata` : fichier source et date d’import.
+
+Cette organisation permet de consulter les informations d’une
+hospitalisation dans un même document, sans jointure.
 
 ###  Fonctionnement du programme
 Le script migrate_to_mongo.py:
 - Se connecte à MongoDB
 - Charge le fichier CSV avec Pandas
 - Transforme les lignes en documents JSON
-- supprime le contenu existant de la collection
+- refuse le chargement si la collection contient déjà des documents
 - Insère les données par batch(1000 documents)
-- Créé les index necessaires
+- vérifie le nombre de documents après insertion
 - Génère des logs de migration
 
 ---
 
-##  Securité confidentielle
+## Sécurité
 
-###  Authentification MongoDB activée 
-###  Rôles définis :
-- admin
-- data engineer
-- analyste
-- médecin 
-###  Vue anonymisée pour les analystes
-###  Principe du moindre privilège appliqué
-###  Fichier .env non versionné
+- Authentification MongoDB configurée au démarrage.
+- Identifiants fournis par des variables d’environnement.
+- Fichier `.env` exclu du suivi Git.
+- Aucun port MongoDB publié sur Windows.
+- CSV monté en lecture seule dans le conteneur de migration.
+
+### Limites
+
+La migration utilise actuellement un compte administrateur.
+Un compte limité à la base cible constitue une amélioration prévue.
+
+La création de rôles personnalisés et d’une vue anonymisée
+n’est pas automatisée dans cette version.
+
+## Installation et exécution
+
+### Prérequis
+
+- Git
+- Docker Desktop avec Docker Compose
+- Le fichier `healthcare_dataset_clean.csv`
+
+### 1. Cloner le dépôt
+
+```bash
+git clone https://github.com/nic2025-g/projet5-mongodb-migration.git
+cd projet5-mongodb-migration
+```
+
+Les améliorations décrites ici sont actuellement sur la branche :
+
+```bash
+git switch feature/portfolio-improvements
+```
+
+### 2. Préparer les données
+
+Placer le CSV nettoyé à cet emplacement :
+
+```text
+data/healthcare_dataset_clean.csv
+```
+
+### 3. Configurer les identifiants
+
+Créer un fichier `.env` à la racine du projet :
+
+```dotenv
+MONGO_USER=migration_admin
+MONGO_PASS=REMPLACER_PAR_UN_MOT_DE_PASSE
+MONGO_HOST=mongo
+MONGO_PORT=27017
+MONGO_DB=healthcare_portfolio_test
+MONGO_COLLECTION=patients
+```
+
+Remplacer le mot de passe avant le lancement.
+Ne jamais publier le fichier `.env`.
+
+Le script utilise actuellement la collection `patients`
+directement dans le code.
+
+### 4. Vérifier la configuration
+
+```bash
+docker compose config --quiet
+```
+
+### 5. Démarrer MongoDB
+
+```bash
+docker compose up -d mongo
+docker compose ps
+```
+
+Attendre que MongoDB affiche le statut `healthy`.
+
+### 6. Exécuter la migration
+
+```bash
+docker compose run --rm --build migration
+```
+
+La migration refuse de démarrer si la collection contient déjà
+des documents.
+
+### 7. Consulter les journaux sous PowerShell
+
+```powershell
+Get-Content .\logs\migration.log -Tail 20 -Encoding UTF8
+```
+
+### 8. Arrêter les services
+
+```bash
+docker compose down
+```
+
+Les données restent conservées dans le volume Docker.
+La commande `docker compose down -v` supprime ce volume
+et ses données : elle ne doit pas être utilisée pour un arrêt courant.
+
+### Identifiants et volume persistant
+
+Les variables `MONGO_INITDB_ROOT_USERNAME` et
+`MONGO_INITDB_ROOT_PASSWORD` servent à initialiser le compte
+sur un volume neuf. Modifier ensuite le fichier `.env`
+ne change pas le mot de passe du compte déjà créé.
 
 ---
 
@@ -158,47 +274,50 @@ MONGO_COLLECTION=patients
 
 ---
 
-##  Performances
+## Résultats et vérifications
 
-###  Insertion par batch(1000 documents)
+Tests réalisés le 19 octobre 2026 dans une base de test dédiée.
 
-###  Index créé sur :
+| Vérification | Résultat |
+|---|---|
+| Lignes du CSV nettoyé | 54 897 |
+| Documents insérés dans MongoDB | 54 897 |
+| Taille des lots d’insertion | 1 000 documents |
+| Code de sortie après migration réussie | 0 |
+| Relance sur une collection déjà remplie | Refus avant insertion, code 1 |
 
-- nom
-- condition médicale
-- hôpital 
-- date d'admission
+Le script vérifie que le nombre de documents insérés et le nombre
+final de documents correspondent au nombre de lignes du CSV.
 
-###  Amelioration des temps de requête avec index
+Il refuse de charger une collection non vide afin de préserver
+les données existantes. Il ne réalise pas de déduplication métier.
+
+Les journaux sont conservés localement dans `logs/migration.log`
+et ne sont pas versionnés.
+
+### Limites actuelles
+
+- Le CSV et les documents transformés sont chargés entièrement en mémoire.
+- Les dates provenant du CSV sont conservées sous forme de chaînes.
+- Une erreur pendant le chargement peut laisser une insertion partielle.
+- Aucun index métier n’est créé par le script actuel.
+- Les performances des requêtes n’ont pas été mesurées.
+
 
 ---
 
-##  Perspective Cloud(AWS)
+## Conclusion
 
-###  Possibilité de déploiement via :
+Ce projet met en œuvre une migration CSV vers MongoDB avec Python
+et Docker Compose : transformation en documents imbriqués,
+insertion par lots, journalisation et contrôle du nombre de documents.
 
-- MongoDB Atlas
-- Amazon DocumentDB
-- Amazon ECS
-- Sauvegarde via S3
+Les tests ont confirmé l’import de 54 897 documents et le refus
+d’un second chargement sur une collection déjà remplie.
 
----
-
-##  Conclusion
-
-###  Ce projet demontre :
-
-- La maitrise de MongoDB
-- L'automatisation d'un pipeline de migration
-- La conteneurisation via Docker
-- la mise en place d'une architechture sécurisée 
-
-###  Il génère une documentation complète et reproductible
-
-
-
-
-
+Les prochaines améliorations envisagées sont la création d’index
+adaptés aux requêtes, un compte de migration aux droits limités,
+la validation des données et la lecture du CSV par morceaux.
 
 
 

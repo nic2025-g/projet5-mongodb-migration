@@ -3,6 +3,7 @@ from pymongo import MongoClient
 from datetime import datetime
 import logging
 import os
+import sys
 
 
 # ============================
@@ -43,14 +44,17 @@ CSV_FILE = "data/healthcare_dataset_clean.csv"
 # CONNEXION MONGO
 # ============================
 
-uri = f"mongodb://{MONGO_USER}:{MONGO_PASS}@{MONGO_HOST}:27017/?authSource=admin"
-
-client = MongoClient(uri)
+client = MongoClient(
+    host=MONGO_HOST,
+    port=int(os.getenv("MONGO_PORT", "27017")),
+    username=MONGO_USER,
+    password=MONGO_PASS,
+    authSource="admin",
+    serverSelectionTimeoutMS=10000
+)
 
 db = client[MONGO_DB]
 collection = db["patients"]
-
-logging.info("Connexion MongoDB OK")
 
 
 # ============================
@@ -117,25 +121,50 @@ for _, row in df.iterrows():
 # ============================
 
 try:
+    client.admin.command("ping")
+    logging.info("Connexion MongoDB vérifiée")
 
-    collection.delete_many({})
-    logging.info("Collection vidée")
+    existing_count = collection.count_documents({})
+
+    if existing_count > 0:
+        raise RuntimeError(
+            f"La collection contient déjà {existing_count} documents. "
+            "Migration annulée pour préserver les données existantes."
+        )
+
+    if not documents:
+        raise ValueError("Aucun document à importer.")
 
     BATCH = 1000
     total = len(documents)
+    inserted_count = 0
 
     for i in range(0, total, BATCH):
+        batch = documents[i:i + BATCH]
+        result = collection.insert_many(batch)
+        inserted_count += len(result.inserted_ids)
 
-        batch = documents[i:i+BATCH]
+        logging.info("Insertion : %s / %s", inserted_count, total)
 
-        collection.insert_many(batch)
+    final_count = collection.count_documents({})
 
-        logging.info(f"Insertion : {i+len(batch)} / {total}")
+    if inserted_count != total or final_count != total:
+        raise RuntimeError(
+            f"Comptage incorrect : {total} attendus, "
+            f"{inserted_count} insérés, {final_count} présents."
+        )
 
-    logging.info("Migration terminée")
+    logging.info("Migration réussie : %s documents", final_count)
+    print(f"Migration réussie : {final_count} documents ✅")
 
-except Exception as e:
+except Exception:
+    logging.exception("Échec de la migration")
+    print(
+        "Migration interrompue. Consultez logs/migration.log. "
+        "Une insertion partielle peut avoir eu lieu.",
+        file=sys.stderr
+    )
+    sys.exit(1)
 
-    logging.error(f"ERREUR : {e}")
-
-print("Migration terminée ✅")
+finally:
+    client.close()
